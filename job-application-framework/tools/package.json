@@ -1,0 +1,14 @@
+{
+  "name": "job-application-framework-tools",
+  "version": "1.0.0",
+  "description": "Build branded resume and cover letter .docx from a content JSON",
+  "main": "build.js",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "docx": "^9.7.2"
+  },
+  "private": true
+}

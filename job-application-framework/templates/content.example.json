@@ -1,0 +1,90 @@
+{
+  "fileBase": "Firstname_Lastname_Company_Role",
+  "candidate": {
+    "name": "Firstname Lastname",
+    "headline": "Target Title  |  Theme 2  |  Theme 3",
+    "tagline": "One sentence: the outcome you deliver, in the posting's language.",
+    "contact": [
+      "City, ST",
+      "555-555-5555",
+      "you@example.com",
+      "linkedin.com/in/you"
+    ]
+  },
+  "resume": {
+    "summary": "3–5 sentences: years and domain, the two strongest proof points for THIS role, and what makes you different.",
+    "matchTable": {
+      "title": "Where I Match the Role",
+      "headers": [
+        "What the role needs",
+        "What I've done"
+      ],
+      "rows": [
+        [
+          "JD pillar 1",
+          "Evidence with a named example"
+        ],
+        [
+          "JD pillar 2",
+          "Evidence with a named example"
+        ]
+      ]
+    },
+    "experience": [
+      {
+        "title": "Title of record",
+        "dates": "Mon YYYY – Mon YYYY",
+        "company": "Company",
+        "context": "One-line company or role context",
+        "bullets": [
+          [
+            "Label echoing the posting",
+            "One factual sentence with a verifiable detail."
+          ]
+        ]
+      }
+    ],
+    "earlier": [
+      [
+        "Title, Company (YYYY–YYYY)",
+        "Optional one-liner (leave empty for none)."
+      ]
+    ],
+    "credentials": [
+      [
+        "Certifications",
+        "Verified list only"
+      ],
+      [
+        "Education",
+        "School, degree"
+      ]
+    ]
+  },
+  "coverLetter": {
+    "date": "Month D, YYYY",
+    "recipient": [
+      "Hiring Team",
+      "Company",
+      "Re: Role (Req. ID)"
+    ],
+    "salutation": "Dear Hiring Team,",
+    "paragraphs": [
+      "Opening: their problem in their words, then why you've already solved it.",
+      {
+        "label": "Theme 1",
+        "text": "Proof."
+      },
+      {
+        "label": "Theme 2",
+        "text": "Proof."
+      },
+      {
+        "label": "The honest gap",
+        "text": "Name it, then show how you close it."
+      },
+      "Close: logistics and a clear next step."
+    ],
+    "closing": "Sincerely,"
+  }
+}

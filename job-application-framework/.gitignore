@@ -1,0 +1,6 @@
+# Personal application content never goes in this public repo
+applications/
+private/
+tools/node_modules/
+**/out/
+**/preview/
