@@ -10,6 +10,8 @@ Follow these steps in order for each job description the user pastes. Work in `a
 
 ## 1. Understand the role
 - Pull out: must-haves, nice-to-haves, the language the posting keeps repeating, location and in-office policy, and salary range.
+- Judge fit only from the **full** job description, never from a title or alert snippet. Titles can hide a very different role (e.g., a "Finance Systems Director" that is really hands-on Python/DBT/Airflow engineering).
+- If the posting site is blocked from the session, ask the user to save the job page to Drive (or paste it) and read it from there.
 - Find the live req ID and apply link. Greenhouse is the most reliable for many tech companies. Aggregators help confirm a listing is still live. LinkedIn job pages can't be fetched.
 
 ## 2. Fit assessment (before building anything)
@@ -17,7 +19,8 @@ Follow these steps in order for each job description the user pastes. Work in `a
 - Give honest interview and offer probabilities, and list the risks an interviewer will probe (tenure, gaps, location, domain).
 - If the fit is poor, say so and **stop** unless the user explicitly wants to go ahead.
 - If the role is below the user's level, use this reframe: bringing architecture-level thinking in now avoids needing a second hire as the company scales.
-- Mention any better-fit roles at the same company (check Gmail job alerts).
+- Mention any better-fit roles at the same company (check Gmail job alerts), and label them "unverified" until their full descriptions have been read.
+- When the user asks for several roles at once, build full packages only for the ones that pass this step. For the rest, deliver a one-page fit memo.
 
 ## 3. Source work examples
 - **Drive:** role summaries, recent decks, proposals, ROMs, estimators and test documents. Search with `fullText contains` / `title contains` and `modifiedTime` filters. Get links for each example.
