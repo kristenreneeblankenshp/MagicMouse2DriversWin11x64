@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Planner</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f0f2f5; --border: #dde1e7;
+  --text: #1c2330; --muted: #637083; --accent: #3b5bdb; --accent-soft: #e5ebff;
+  --todo: #637083; --progress: #1971c2; --blocked: #c92a2a; --done: #2b8a3e;
+  --warn: #e67700; --research: #7048e8; --shadow: 0 1px 3px rgba(20,30,50,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12151b; --panel: #1b1f27; --panel-2: #232833; --border: #2e3440;
+    --text: #e4e8ef; --muted: #98a2b3; --accent: #7c96ff; --accent-soft: #252f52;
+    --todo: #98a2b3; --progress: #4dabf7; --blocked: #ff6b6b; --done: #51cf66;
+    --warn: #ffa94d; --research: #9775fa; --shadow: 0 1px 3px rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12151b; --panel: #1b1f27; --panel-2: #232833; --border: #2e3440;
+  --text: #e4e8ef; --muted: #98a2b3; --accent: #7c96ff; --accent-soft: #252f52;
+  --todo: #98a2b3; --progress: #4dabf7; --blocked: #ff6b6b; --done: #51cf66;
+  --warn: #ffa94d; --research: #9775fa; --shadow: 0 1px 3px rgba(0,0,0,.4);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: var(--accent); }
+
+.app { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+aside { background: var(--panel); border-right: 1px solid var(--border); padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+aside h1 { font-size: 16px; margin: 0 8px 12px; }
+.side-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 12px 8px 4px; }
+.proj { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; border: 0; background: none; text-align: left; width: 100%; }
+.proj:hover { background: var(--panel-2); }
+.proj.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.proj .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.proj .count { margin-left: auto; font-size: 12px; color: var(--muted); }
+.side-actions { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding-top: 16px; }
+
+main { padding: 20px 24px 40px; min-width: 0; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 16px; }
+.topbar h2 { margin: 0; font-size: 20px; flex: 1 1 auto; }
+.btn { border: 1px solid var(--border); background: var(--panel); padding: 6px 12px; border-radius: 6px; }
+.btn:hover { background: var(--panel-2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.danger { color: var(--blocked); }
+.btn.small { padding: 3px 8px; font-size: 12px; }
+.icon-btn { border: 0; background: none; color: var(--muted); padding: 2px 6px; border-radius: 4px; }
+.icon-btn:hover { background: var(--panel-2); color: var(--text); }
+
+.stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
+.stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; box-shadow: var(--shadow); }
+.stat .n { font-size: 22px; font-weight: 700; }
+.stat .l { font-size: 12px; color: var(--muted); }
+.stat.warn .n { color: var(--warn); } .stat.bad .n { color: var(--blocked); } .stat.good .n { color: var(--done); }
+
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 14px; overflow-x: auto; }
+.tab { border: 0; background: none; padding: 8px 14px; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.filters input, .filters select, .field input, .field select, .field textarea {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px;
+}
+.filters input[type=search] { flex: 1 1 200px; }
+
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); }
+.empty { color: var(--muted); padding: 32px; text-align: center; }
+
+/* List view */
+.list-row { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: start; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.list-row:last-child { border-bottom: 0; }
+.list-row:hover { background: var(--panel-2); }
+.list-row .title { font-weight: 600; cursor: pointer; }
+.list-row.is-done .title { text-decoration: line-through; color: var(--muted); }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; font-size: 12px; color: var(--muted); align-items: center; }
+.check { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--done); }
+.group-h { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 14px 4px 6px; }
+
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; border: 1px solid currentColor; white-space: nowrap; }
+.b-todo { color: var(--todo); } .b-in-progress { color: var(--progress); } .b-blocked { color: var(--blocked); }
+.b-done { color: var(--done); } .b-research { color: var(--research); } .b-task { color: var(--muted); }
+.b-high { color: var(--blocked); } .b-medium { color: var(--warn); } .b-low { color: var(--muted); }
+.overdue { color: var(--blocked); font-weight: 600; }
+.tag { background: var(--panel-2); border-radius: 4px; padding: 0 6px; }
+
+/* Board */
+.board { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+.col { background: var(--panel-2); border-radius: 8px; padding: 10px; min-height: 200px; }
+.col.drag-over { outline: 2px dashed var(--accent); }
+.col h3 { margin: 0 0 10px; font-size: 13px; display: flex; justify-content: space-between; }
+.bcard { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; cursor: grab; box-shadow: var(--shadow); }
+.bcard .title { font-weight: 600; }
+
+/* Timeline & graph */
+.scroll-x { overflow-x: auto; }
+svg text { fill: var(--text); font-size: 12px; }
+svg .muted { fill: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); margin: 10px 2px 0; }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; background: var(--c); vertical-align: -1px; }
+
+/* Calendar */
+.cal-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.cal-head h3 { margin: 0; font-size: 16px; min-width: 160px; }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
+.cal .dow { font-size: 11px; text-transform: uppercase; color: var(--muted); padding: 6px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--panel-2); }
+.cal .day { min-height: 96px; padding: 4px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--panel); cursor: pointer; min-width: 0; }
+.cal .day.other { background: var(--panel-2); opacity: .6; }
+.cal .day.today .num { background: var(--accent); color: #fff; border-radius: 10px; padding: 0 6px; }
+.cal .num { font-size: 12px; color: var(--muted); display: inline-block; margin-bottom: 2px; }
+.cal .ev { font-size: 11px; padding: 1px 5px; border-radius: 3px; margin-bottom: 2px; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Dependencies */
+.dep-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+.dep-grid .card { padding: 12px 14px; }
+.dep-grid h3 { margin: 0 0 8px; font-size: 14px; }
+.dep-grid ul { margin: 0; padding-left: 18px; }
+.dep-grid li { margin-bottom: 6px; }
+.linkish { cursor: pointer; text-decoration: underline dotted; }
+
+/* Research */
+.research-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.research-grid .card { padding: 14px; }
+.research-grid h3 { margin: 0 0 6px; font-size: 15px; cursor: pointer; }
+.research-grid .q { color: var(--muted); font-style: italic; margin: 6px 0; }
+.research-grid .findings { white-space: pre-wrap; background: var(--panel-2); border-radius: 6px; padding: 8px; margin: 8px 0; }
+.research-grid ol { margin: 6px 0 0; padding-left: 18px; }
+
+/* Dialog */
+dialog { border: 1px solid var(--border); border-radius: 10px; padding: 0; background: var(--panel); color: var(--text); width: min(680px, calc(100vw - 32px)); max-height: calc(100vh - 32px); }
+dialog::backdrop { background: rgba(10,15,25,.45); }
+.dlg-body { padding: 18px 20px; overflow-y: auto; max-height: calc(100vh - 120px); }
+.dlg-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 20px; border-top: 1px solid var(--border); }
+.dlg-foot .spacer { flex: 1; }
+.form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field.full { grid-column: 1 / -1; }
+.field label { font-size: 12px; font-weight: 600; color: var(--muted); }
+.field textarea { min-height: 70px; resize: vertical; }
+.research-only { display: none; }
+.is-research .research-only { display: flex; }
+.dep-picker { border: 1px solid var(--border); border-radius: 6px; max-height: 180px; overflow-y: auto; padding: 4px; }
+.dep-picker label { display: flex; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 4px; font-weight: 400; color: var(--text); font-size: 13px; }
+.dep-picker label:hover { background: var(--panel-2); }
+.dep-picker label.disabled { opacity: .45; }
+.sub-list { display: flex; flex-direction: column; gap: 4px; }
+.sub-item { display: flex; gap: 6px; align-items: center; }
+.sub-item input[type=text], .sub-item input[type=url] { flex: 1; min-width: 0; }
+.hint { font-size: 12px; color: var(--muted); }
+.warn-box { background: color-mix(in srgb, var(--warn) 14%, transparent); border: 1px solid var(--warn); border-radius: 6px; padding: 8px 10px; font-size: 13px; margin-bottom: 12px; }
+
+@media (max-width: 860px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  aside { min-width: 0; }
+  aside { border-right: 0; border-bottom: 1px solid var(--border); padding: 12px 16px; }
+  #projectList { display: flex; gap: 4px; overflow-x: auto; }
+  .proj { width: auto; white-space: nowrap; }
+  .side-actions { flex-direction: row; flex-wrap: wrap; margin-top: 8px; padding-top: 0; }
+  main { padding: 16px; }
+  .stats { grid-template-columns: repeat(3, 1fr); }
+  .dep-grid { grid-template-columns: 1fr; }
+  .form-grid { grid-template-columns: 1fr; }
+  .cal .day { min-height: 64px; }
+  .cal .ev { font-size: 10px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <h1>Project Planner</h1>
+    <div class="side-label">Projects</div>
+    <div id="projectList"></div>
+    <button class="btn small" id="addProject" style="margin-top:6px">+ New project</button>
+    <div class="side-actions">
+      <button class="btn small" id="exportBtn">Export JSON</button>
+      <button class="btn small" id="importBtn">Import JSON</button>
+      <input type="file" id="importFile" accept="application/json" hidden>
+      <button class="btn small" id="themeBtn">Toggle theme</button>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <h2 id="viewTitle">All projects</h2>
+      <button class="btn small" id="renameProject" hidden>Rename</button>
+      <button class="btn small danger" id="deleteProject" hidden>Delete project</button>
+      <button class="btn primary" id="newItem">+ New item</button>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="tabs" id="tabs">
+      <button class="tab" data-view="list">List</button>
+      <button class="tab" data-view="board">Board</button>
+      <button class="tab" data-view="timeline">Timeline</button>
+      <button class="tab" data-view="calendar">Calendar</button>
+      <button class="tab" data-view="deps">Dependencies</button>
+      <button class="tab" data-view="research">Research</button>
+    </div>
+
+    <div class="filters">
+      <input type="search" id="search" placeholder="Search titles, notes, tags…">
+      <select id="fType"><option value="">All types</option><option value="task">To-dos</option><option value="research">Research</option></select>
+      <select id="fStatus"><option value="">Any status</option></select>
+      <select id="fPriority"><option value="">Any priority</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
+      <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="fHideDone"> Hide done</label>
+    </div>
+
+    <div id="view"></div>
+  </main>
+</div>
+
+<dialog id="dlg">
+  <form id="itemForm" method="dialog">
+    <div class="dlg-body" id="dlgBody">
+      <div id="dlgWarn"></div>
+      <div class="form-grid">
+        <div class="field full"><label for="iTitle">Title</label><input id="iTitle" required></div>
+        <div class="field"><label for="iType">Type</label>
+          <select id="iType"><option value="task">To-do</option><option value="research">Research</option></select></div>
+        <div class="field"><label for="iProject">Project</label><select id="iProject"></select></div>
+        <div class="field"><label for="iStatus">Status</label><select id="iStatus"></select></div>
+        <div class="field"><label for="iPriority">Priority</label>
+          <select id="iPriority"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+        <div class="field"><label for="iStart">Start date</label><input type="date" id="iStart"></div>
+        <div class="field"><label for="iDue">Due date</label><input type="date" id="iDue"></div>
+        <div class="field full"><label for="iTags">Tags (comma separated)</label><input id="iTags" placeholder="e.g. design, client"></div>
+        <div class="field full research-only"><label for="iQuestion">Research question</label><input id="iQuestion" placeholder="What do you need to find out?"></div>
+        <div class="field full"><label for="iNotes">Notes</label><textarea id="iNotes"></textarea></div>
+        <div class="field full research-only"><label for="iFindings">Findings / conclusions</label><textarea id="iFindings"></textarea></div>
+        <div class="field full research-only"><label>Sources</label>
+          <div class="sub-list" id="sourceList"></div>
+          <button type="button" class="btn small" id="addSource" style="align-self:flex-start">+ Add source</button></div>
+        <div class="field full"><label>Checklist</label>
+          <div class="sub-list" id="checkList"></div>
+          <button type="button" class="btn small" id="addCheck" style="align-self:flex-start">+ Add step</button></div>
+        <div class="field full"><label>Depends on (must be finished first)</label>
+          <input type="search" id="depSearch" placeholder="Filter items…">
+          <div class="dep-picker" id="depPicker"></div>
+          <div class="hint">Items that would create a circular dependency are disabled.</div></div>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn danger" id="deleteItem">Delete</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" id="cancelItem">Cancel</button>
+      <button type="submit" class="btn primary" id="saveItem">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+  const KEY = 'project-planner-v1';
+  const STATUSES = [
+    { id: 'todo', label: 'To do' },
+    { id: 'in-progress', label: 'In progress' },
+    { id: 'blocked', label: 'On hold' },
+    { id: 'done', label: 'Done' },
+  ];
+  const COLORS = ['#3b5bdb', '#2b8a3e', '#e8590c', '#7048e8', '#0c8599', '#c2255c', '#5c940d', '#a61e4d'];
+  const PRIORITY_RANK = { high: 0, medium: 1, low: 2 };
+
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const uid = () => Math.random().toString(36).slice(2, 10);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const pad = n => String(n).padStart(2, '0');
+  const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return ymd(d); };
+  const diffDays = (a, b) => Math.round((parse(b) - parse(a)) / 86400000);
+  const today = () => ymd(new Date());
+  const fmt = s => s ? parse(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+  const statusLabel = id => (STATUSES.find(s => s.id === id) || {}).label || id;
+
+  function safeGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+  function safeSet(k, v) { try { localStorage.setItem(k, v); } catch {} }
+
+  // ---------- State ----------
+  let state = load();
+
+  function sample() {
+    const t = today();
+    const p1 = { id: uid(), name: 'Website relaunch', color: COLORS[0] };
+    const p2 = { id: uid(), name: 'Personal', color: COLORS[1] };
+    const a = uid(), b = uid(), c = uid(), d = uid(), e = uid(), f = uid();
+    const base = { notes: '', tags: [], deps: [], sources: [], checklist: [], question: '', findings: '', priority: 'medium' };
+    return {
+      projects: [p1, p2],
+      items: [
+        { ...base, id: a, projectId: p1.id, type: 'research', title: 'Research competitor sites', status: 'in-progress', priority: 'high', start: addDays(t, -3), due: addDays(t, 2),
+          question: 'What do the top 3 competitors do well on their homepages?', tags: ['discovery'],
+          sources: [{ title: 'Nielsen Norman: Homepage guidelines', url: 'https://www.nngroup.com/' }], findings: 'Clear value proposition above the fold; social proof near CTA.' },
+        { ...base, id: b, projectId: p1.id, type: 'task', title: 'Draft sitemap', status: 'todo', start: addDays(t, 3), due: addDays(t, 5), deps: [a], tags: ['design'] },
+        { ...base, id: c, projectId: p1.id, type: 'task', title: 'Wireframes', status: 'todo', start: addDays(t, 6), due: addDays(t, 12), deps: [b], priority: 'high',
+          checklist: [{ id: uid(), text: 'Homepage', done: false }, { id: uid(), text: 'Pricing page', done: false }] },
+        { ...base, id: d, projectId: p1.id, type: 'research', title: 'Choose CMS', status: 'todo', start: addDays(t, 1), due: addDays(t, 8), question: 'Which CMS fits a small marketing team?' },
+        { ...base, id: e, projectId: p1.id, type: 'task', title: 'Build & launch', status: 'todo', start: addDays(t, 13), due: addDays(t, 24), deps: [c, d], priority: 'high' },
+        { ...base, id: f, projectId: p2.id, type: 'task', title: 'Renew passport', status: 'todo', due: addDays(t, -1), priority: 'high', tags: ['errand'] },
+      ],
+      activeProject: 'all', view: 'list', calMonth: t.slice(0, 7),
+    };
+  }
+
+  function load() {
+    const raw = safeGet(KEY);
+    if (raw) { try { return normalize(JSON.parse(raw)); } catch {} }
+    return sample();
+  }
+  function normalize(s) {
+    s.projects = Array.isArray(s.projects) ? s.projects : [];
+    s.items = (Array.isArray(s.items) ? s.items : []).map(i => ({
+      notes: '', tags: [], deps: [], sources: [], checklist: [], question: '', findings: '', priority: 'medium', type: 'task', status: 'todo', start: '', due: '', ...i,
+    }));
+    const ids = new Set(s.items.map(i => i.id));
+    s.items.forEach(i => { i.deps = i.deps.filter(d => ids.has(d) && d !== i.id); });
+    s.activeProject = s.activeProject || 'all';
+    s.view = s.view || 'list';
+    s.calMonth = s.calMonth || today().slice(0, 7);
+    return s;
+  }
+  function save() { safeSet(KEY, JSON.stringify(state)); }
+  function commit() { save(); render(); }
+
+  const byId = id => state.items.find(i => i.id === id);
+  const project = id => state.projects.find(p => p.id === id);
+  const projColor = id => (project(id) || {}).color || '#888';
+
+  // ---------- Dependency logic ----------
+  const openBlockers = i => i.deps.map(byId).filter(d => d && d.status !== 'done');
+  const isBlocked = i => i.status !== 'done' && openBlockers(i).length > 0;
+  const isOverdue = i => i.status !== 'done' && i.due && i.due < today();
+  const dependents = id => state.items.filter(i => i.deps.includes(id));
+  // Would making `item` depend on `candidateId` create a cycle? True if candidate already (transitively) depends on item.
+  function dependsOn(fromId, targetId, seen = new Set()) {
+    if (fromId === targetId) return true;
+    if (seen.has(fromId)) return false;
+    seen.add(fromId);
+    const it = byId(fromId);
+    return !!it && it.deps.some(d => dependsOn(d, targetId, seen));
+  }
+  // Items scheduled to start before one of their dependencies is due.
+  function conflicts(i) {
+    const begin = i.start || i.due;
+    if (!begin) return [];
+    return i.deps.map(byId).filter(d => d && d.due && d.status !== 'done' && d.due >= begin);
+  }
+
+  // ---------- Filtering ----------
+  function scoped() {
+    return state.activeProject === 'all' ? state.items : state.items.filter(i => i.projectId === state.activeProject);
+  }
+  function filtered() {
+    const q = $('#search').value.trim().toLowerCase();
+    const type = $('#fType').value, st = $('#fStatus').value, pr = $('#fPriority').value, hide = $('#fHideDone').checked;
+    return scoped().filter(i => {
+      if (type && i.type !== type) return false;
+      if (st && i.status !== st) return false;
+      if (pr && i.priority !== pr) return false;
+      if (hide && i.status === 'done') return false;
+      if (q) {
+        const hay = [i.title, i.notes, i.question, i.findings, i.tags.join(' '), i.checklist.map(c => c.text).join(' ')].join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }
+  const sortItems = arr => [...arr].sort((a, b) =>
+    (a.status === 'done') - (b.status === 'done') ||
+    (a.due || '9999').localeCompare(b.due || '9999') ||
+    PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] ||
+    a.title.localeCompare(b.title));
+
+  // ---------- Shared bits ----------
+  function badges(i, opts = {}) {
+    const out = [];
+    if (i.type === 'research') out.push('<span class="badge b-research">Research</span>');
+    if (!opts.noStatus) out.push(`<span class="badge b-${i.status}">${statusLabel(i.status)}</span>`);
+    if (isBlocked(i)) out.push(`<span class="badge b-blocked" title="Waiting on: ${esc(openBlockers(i).map(d => d.title).join(', '))}">⛓ Waiting on ${openBlockers(i).length}</span>`);
+    out.push(`<span class="badge b-${i.priority}">${i.priority}</span>`);
+    if (i.due) out.push(`<span class="${isOverdue(i) ? 'overdue' : ''}">${isOverdue(i) ? 'Overdue · ' : 'Due '}${fmt(i.due)}</span>`);
+    if (i.checklist.length) out.push(`<span>☑ ${i.checklist.filter(c => c.done).length}/${i.checklist.length}</span>`);
+    if (conflicts(i).length) out.push(`<span class="overdue" title="Starts before a dependency is due">⚠ schedule conflict</span>`);
+    if (state.activeProject === 'all' && project(i.projectId)) out.push(`<span><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${projColor(i.projectId)}"></span> ${esc(project(i.projectId).name)}</span>`);
+    i.tags.forEach(t => out.push(`<span class="tag">#${esc(t)}</span>`));
+    return out.join('');
+  }
+
+  function toggleDone(i) {
+    if (i.status !== 'done' && isBlocked(i) &&
+        !confirm(`"${i.title}" is still waiting on: ${openBlockers(i).map(d => d.title).join(', ')}.\nMark it done anyway?`)) return false;
+    i.status = i.status === 'done' ? 'todo' : 'done';
+    commit();
+    return true;
+  }
+
+  // ---------- Render ----------
+  function render() {
+    renderSidebar();
+    const p = project(state.activeProject);
+    $('#viewTitle').textContent = p ? p.name : 'All projects';
+    $('#renameProject').hidden = $('#deleteProject').hidden = !p;
+    $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === state.view));
+    renderStats();
+    const views = { list: renderList, board: renderBoard, timeline: renderTimeline, calendar: renderCalendar, deps: renderDeps, research: renderResearch };
+    (views[state.view] || renderList)($('#view'));
+  }
+
+  function renderSidebar() {
+    const count = pid => state.items.filter(i => (pid === 'all' || i.projectId === pid) && i.status !== 'done').length;
+    const row = (id, name, color) => `<button class="proj ${state.activeProject === id ? 'active' : ''}" data-pid="${id}">
+      <span class="dot" style="background:${color}"></span>${esc(name)}<span class="count">${count(id)}</span></button>`;
+    $('#projectList').innerHTML = row('all', 'All projects', 'var(--muted)') + state.projects.map(p => row(p.id, p.name, p.color)).join('');
+  }
+
+  function renderStats() {
+    const items = scoped(), t = today(), week = addDays(t, 7);
+    const open = items.filter(i => i.status !== 'done');
+    const s = [
+      ['Open items', open.length, ''],
+      ['Done', items.length - open.length, 'good'],
+      ['Overdue', open.filter(isOverdue).length, 'bad'],
+      ['Waiting on others', open.filter(isBlocked).length, 'warn'],
+      ['Due in 7 days', open.filter(i => i.due && i.due >= t && i.due <= week).length, ''],
+    ];
+    $('#stats').innerHTML = s.map(([l, n, c]) => `<div class="stat ${n ? c : ''}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+  }
+
+  function renderList(el) {
+    const items = sortItems(filtered());
+    if (!items.length) { el.innerHTML = `<div class="card empty">Nothing here yet. Click <b>+ New item</b> to add a to-do or research item.</div>`; return; }
+    const t = today(), week = addDays(t, 7);
+    const groups = [
+      ['Overdue', i => isOverdue(i)],
+      ['Due this week', i => i.status !== 'done' && i.due && i.due >= t && i.due <= week],
+      ['Later', i => i.status !== 'done' && i.due && i.due > week],
+      ['No date', i => i.status !== 'done' && !i.due],
+      ['Done', i => i.status === 'done'],
+    ];
+    el.innerHTML = groups.map(([name, fn]) => {
+      const g = items.filter(fn);
+      if (!g.length) return '';
+      return `<div class="group-h">${name} · ${g.length}</div><div class="card">${g.map(i => `
+        <div class="list-row ${i.status === 'done' ? 'is-done' : ''}">
+          <input type="checkbox" class="check" data-toggle="${i.id}" ${i.status === 'done' ? 'checked' : ''} aria-label="Mark done">
+          <div><div class="title" data-edit="${i.id}">${esc(i.title)}</div><div class="meta">${badges(i)}</div></div>
+          <button class="icon-btn" data-edit="${i.id}" aria-label="Edit">✎</button>
+        </div>`).join('')}</div>`;
+    }).join('');
+  }
+
+  function renderBoard(el) {
+    const items = sortItems(filtered());
+    el.innerHTML = `<div class="board">${STATUSES.map(s => {
+      const col = items.filter(i => i.status === s.id);
+      return `<div class="col" data-status="${s.id}"><h3><span class="badge b-${s.id}">${s.label}</span><span class="hint">${col.length}</span></h3>
+        ${col.map(i => `<div class="bcard" draggable="true" data-drag="${i.id}" data-edit="${i.id}">
+          <div class="title">${esc(i.title)}</div><div class="meta">${badges(i, { noStatus: true })}</div></div>`).join('')}
+      </div>`;
+    }).join('')}</div><div class="hint" style="margin-top:8px">Drag cards between columns to change status.</div>`;
+
+    $$('.bcard', el).forEach(c => c.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', c.dataset.drag)));
+    $$('.col', el).forEach(col => {
+      col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drag-over'); });
+      col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
+      col.addEventListener('drop', e => {
+        e.preventDefault(); col.classList.remove('drag-over');
+        const i = byId(e.dataTransfer.getData('text/plain'));
+        if (!i || i.status === col.dataset.status) return;
+        if (col.dataset.status === 'done' && isBlocked(i) &&
+            !confirm(`"${i.title}" is still waiting on: ${openBlockers(i).map(d => d.title).join(', ')}.\nMark it done anyway?`)) return;
+        i.status = col.dataset.status; commit();
+      });
+    });
+  }
+
+  function renderTimeline(el) {
+    const items = sortItems(filtered()).filter(i => i.start || i.due)
+      .sort((a, b) => (a.start || a.due).localeCompare(b.start || b.due));
+    if (!items.length) { el.innerHTML = `<div class="card empty">Add start or due dates to items to see them on the timeline.</div>`; return; }
+    const t = today();
+    let min = t, max = t;
+    items.forEach(i => { [i.start, i.due].filter(Boolean).forEach(d => { if (d < min) min = d; if (d > max) max = d; }); });
+    min = addDays(min, -3); max = addDays(max, 4);
+    const days = diffDays(min, max) + 1, DW = 26, LW = 220, RH = 34, TOP = 40;
+    const W = LW + days * DW, H = TOP + items.length * RH + 10;
+    const x = d => LW + diffDays(min, d) * DW;
+    const row = new Map(items.map((i, n) => [i.id, n]));
+    let g = '';
+    // grid + date labels
+    for (let n = 0; n < days; n++) {
+      const d = addDays(min, n), dt = parse(d), wk = dt.getDay() === 0 || dt.getDay() === 6;
+      if (wk) g += `<rect x="${LW + n * DW}" y="${TOP}" width="${DW}" height="${H - TOP}" fill="var(--panel-2)"/>`;
+      if (dt.getDate() === 1 || n === 0) g += `<text x="${LW + n * DW + 2}" y="14" font-weight="600">${dt.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</text>`;
+      g += `<text x="${LW + n * DW + DW / 2}" y="32" text-anchor="middle" class="muted" font-size="10">${dt.getDate()}</text>`;
+    }
+    g += `<line x1="${LW}" x2="${W}" y1="${TOP}" y2="${TOP}" stroke="var(--border)"/>`;
+    // rows
+    items.forEach((i, n) => {
+      const y = TOP + n * RH;
+      g += `<line x1="0" x2="${W}" y1="${y + RH}" y2="${y + RH}" stroke="var(--border)" stroke-opacity=".5"/>`;
+      const label = i.title.length > 28 ? i.title.slice(0, 27) + '…' : i.title;
+      g += `<text x="8" y="${y + RH / 2 + 4}" data-edit="${i.id}" style="cursor:pointer">${esc(label)}</text>`;
+      const s = i.start || i.due, e = i.due || i.start;
+      const [a, b] = s <= e ? [s, e] : [e, s];
+      const color = i.status === 'done' ? 'var(--done)' : isBlocked(i) ? 'var(--blocked)' : i.type === 'research' ? 'var(--research)' : projColor(i.projectId);
+      g += `<rect x="${x(a) + 2}" y="${y + 8}" width="${Math.max(DW - 4, x(b) - x(a) + DW - 4)}" height="${RH - 16}" rx="4" fill="${color}"
+              opacity="${i.status === 'done' ? .55 : .9}" data-edit="${i.id}" style="cursor:pointer"><title>${esc(i.title)} (${fmt(a)} – ${fmt(b)})</title></rect>`;
+    });
+    // dependency arrows
+    items.forEach(i => i.deps.forEach(did => {
+      const d = byId(did);
+      if (!d || !row.has(did)) return;
+      const de = (d.due || d.start), is = (i.start || i.due);
+      const x1 = x(de) + DW - 2, y1 = TOP + row.get(did) * RH + RH / 2;
+      const x2 = x(is) + 2, y2 = TOP + row.get(i.id) * RH + RH / 2;
+      const bad = conflicts(i).includes(d);
+      const mid = Math.max(x1 + 8, Math.min(x2 - 8, x1 + 8));
+      g += `<path d="M${x1},${y1} H${mid} V${y2} H${x2 - 2}" fill="none" stroke="${bad ? 'var(--blocked)' : 'var(--muted)'}" stroke-width="1.5" marker-end="url(#arr${bad ? 'Bad' : ''})"/>`;
+    }));
+    const tx = x(t) + DW / 2;
+    g += `<line x1="${tx}" x2="${tx}" y1="${TOP - 4}" y2="${H}" stroke="var(--accent)" stroke-width="2" stroke-dasharray="4 3"/>`;
+    el.innerHTML = `<div class="card scroll-x"><svg width="${W}" height="${H}" role="img" aria-label="Timeline">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker>
+        <marker id="arrBad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--blocked)"/></marker>
+      </defs>${g}</svg></div>
+      <div class="legend"><span style="--c:var(--accent)">Today</span><span style="--c:var(--research)">Research</span>
+      <span style="--c:var(--blocked)">Waiting on a dependency</span><span style="--c:var(--done)">Done</span>
+      <span style="--c:var(--muted)">Arrow = dependency (red = starts before dependency is due)</span></div>`;
+  }
+
+  function renderCalendar(el) {
+    const [y, m] = state.calMonth.split('-').map(Number);
+    const first = new Date(y, m - 1, 1);
+    const startOffset = (first.getDay() + 6) % 7; // Monday first
+    const gridStart = ymd(new Date(y, m - 1, 1 - startOffset));
+    const items = filtered();
+    const t = today();
+    let cells = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => `<div class="dow">${d}</div>`).join('');
+    for (let n = 0; n < 42; n++) {
+      const d = addDays(gridStart, n), dt = parse(d);
+      const evs = items.filter(i => i.due === d).sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]);
+      cells += `<div class="day ${dt.getMonth() !== m - 1 ? 'other' : ''} ${d === t ? 'today' : ''}" data-day="${d}">
+        <span class="num">${dt.getDate()}</span>
+        ${evs.map(i => `<div class="ev" data-edit="${i.id}" title="${esc(i.title)}" style="background:${i.status === 'done' ? 'var(--done)' : isOverdue(i) ? 'var(--blocked)' : i.type === 'research' ? 'var(--research)' : projColor(i.projectId)}">${i.status === 'done' ? '✓ ' : ''}${esc(i.title)}</div>`).join('')}
+      </div>`;
+    }
+    el.innerHTML = `<div class="cal-head">
+        <button class="btn small" data-cal="-1">‹</button>
+        <h3>${first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</h3>
+        <button class="btn small" data-cal="1">›</button>
+        <button class="btn small" data-cal="0">Today</button>
+        <span class="hint">Items appear on their due date. Click a day to add an item due then.</span>
+      </div><div class="cal card">${cells}</div>`;
+  }
+
+  function renderDeps(el) {
+    const items = filtered();
+    const open = items.filter(i => i.status !== 'done');
+    const ready = sortItems(open.filter(i => !isBlocked(i) && i.status !== 'in-progress'));
+    const waiting = sortItems(open.filter(isBlocked));
+    const conf = sortItems(open.filter(i => conflicts(i).length));
+    const link = i => `<span class="linkish" data-edit="${i.id}">${esc(i.title)}</span>`;
+    const box = (title, arr, fn, emptyMsg) => `<div class="card"><h3>${title} (${arr.length})</h3>${arr.length ? `<ul>${arr.map(fn).join('')}</ul>` : `<div class="hint">${emptyMsg}</div>`}</div>`;
+    let html = `<div class="dep-grid">
+      ${box('✅ Ready to start', ready, i => `<li>${link(i)}${i.due ? ` <span class="hint">· due ${fmt(i.due)}</span>` : ''}</li>`, 'Nothing is ready — everything open is waiting or in progress.')}
+      ${box('⛓ Waiting on dependencies', waiting, i => `<li>${link(i)}<div class="hint">waiting on ${openBlockers(i).map(link).join(', ')}</div></li>`, 'Nothing is blocked.')}
+      ${box('⚠ Schedule conflicts', conf, i => `<li>${link(i)}<div class="hint">starts ${fmt(i.start || i.due)}, but ${conflicts(i).map(d => `${link(d)} is due ${fmt(d.due)}`).join(', ')}</div></li>`, 'No conflicts — all start dates come after their dependencies are due.')}
+    </div>`;
+
+    // Layered dependency graph
+    const ids = new Set(items.map(i => i.id));
+    const involved = items.filter(i => i.deps.some(d => ids.has(d)) || items.some(o => o.deps.includes(i.id)));
+    if (!involved.length) {
+      html += `<div class="card empty">No dependencies yet. Open an item and use <b>Depends on</b> to link it to work that must be finished first.</div>`;
+      el.innerHTML = html; return;
+    }
+    const inv = new Set(involved.map(i => i.id));
+    const depth = new Map();
+    const level = (i, stack = new Set()) => {
+      if (depth.has(i.id)) return depth.get(i.id);
+      if (stack.has(i.id)) return 0;
+      stack.add(i.id);
+      const ds = i.deps.filter(d => inv.has(d)).map(byId);
+      const v = ds.length ? 1 + Math.max(...ds.map(d => level(d, stack))) : 0;
+      depth.set(i.id, v); return v;
+    };
+    involved.forEach(i => level(i));
+    // Pull items right so they sit just before the earliest item they unblock (avoids edges passing behind nodes).
+    [...involved].sort((a, b) => depth.get(b.id) - depth.get(a.id)).forEach(i => {
+      const next = involved.filter(o => o.deps.includes(i.id)).map(o => depth.get(o.id));
+      if (next.length) depth.set(i.id, Math.max(depth.get(i.id), Math.min(...next) - 1));
+    });
+    const cols = [];
+    involved.forEach(i => { const l = depth.get(i.id); (cols[l] = cols[l] || []).push(i); });
+    for (let n = 0; n < cols.length; n++) cols[n] = cols[n] || [];
+    cols.forEach(c => c.sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999')));
+    const NW = 190, NH = 46, CG = 70, RG = 14, PADG = 16;
+    const pos = new Map();
+    cols.forEach((c, ci) => (c || []).forEach((i, ri) => pos.set(i.id, { x: PADG + ci * (NW + CG), y: PADG + ri * (NH + RG) })));
+    const W = PADG * 2 + cols.length * (NW + CG) - CG;
+    const H = PADG * 2 + Math.max(...cols.map(c => (c || []).length)) * (NH + RG) - RG;
+    let g = '';
+    involved.forEach(i => i.deps.filter(d => pos.has(d)).forEach(d => {
+      const a = pos.get(d), b = pos.get(i.id), dn = byId(d).status === 'done';
+      const x1 = a.x + NW, y1 = a.y + NH / 2, x2 = b.x, y2 = b.y + NH / 2, cx = (x1 + x2) / 2;
+      g += `<path d="M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2 - 3},${y2}" fill="none" stroke="${dn ? 'var(--done)' : 'var(--muted)'}" stroke-width="1.5" marker-end="url(#garr)"/>`;
+    }));
+    involved.forEach(i => {
+      const p = pos.get(i.id);
+      const stroke = i.status === 'done' ? 'var(--done)' : isBlocked(i) ? 'var(--blocked)' : i.type === 'research' ? 'var(--research)' : 'var(--accent)';
+      const label = i.title.length > 24 ? i.title.slice(0, 23) + '…' : i.title;
+      g += `<g data-edit="${i.id}" style="cursor:pointer">
+        <rect x="${p.x}" y="${p.y}" width="${NW}" height="${NH}" rx="6" fill="var(--panel)" stroke="${stroke}" stroke-width="2"/>
+        <text x="${p.x + 10}" y="${p.y + 19}" font-weight="600">${esc(label)}</text>
+        <text x="${p.x + 10}" y="${p.y + 36}" class="muted" font-size="11">${statusLabel(i.status)}${i.due ? ' · due ' + fmt(i.due) : ''}</text>
+        <title>${esc(i.title)}</title></g>`;
+    });
+    html += `<div class="card scroll-x"><svg width="${W}" height="${H}" role="img" aria-label="Dependency graph">
+      <defs><marker id="garr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker></defs>${g}</svg></div>
+      <div class="legend"><span style="--c:var(--accent)">Open</span><span style="--c:var(--research)">Research</span><span style="--c:var(--blocked)">Waiting</span><span style="--c:var(--done)">Done</span><span style="--c:var(--muted)">Flows left → right: finish the left before the right</span></div>`;
+    el.innerHTML = html;
+  }
+
+  function renderResearch(el) {
+    const items = sortItems(filtered().filter(i => i.type === 'research'));
+    if (!items.length) { el.innerHTML = `<div class="card empty">No research items. Create a new item and set its type to <b>Research</b> to track questions, sources and findings.</div>`; return; }
+    el.innerHTML = `<div class="research-grid">${items.map(i => `<div class="card">
+      <h3 data-edit="${i.id}">${esc(i.title)}</h3>
+      <div class="meta">${badges(i)}</div>
+      ${i.question ? `<div class="q">❓ ${esc(i.question)}</div>` : ''}
+      ${i.findings ? `<div class="findings">${esc(i.findings)}</div>` : '<div class="hint" style="margin:8px 0">No findings recorded yet.</div>'}
+      ${i.sources.length ? `<b style="font-size:12px">Sources</b><ol>${i.sources.map(s => `<li>${/^https?:\/\//i.test(s.url) ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title || s.url)}</a>` : esc(s.title || s.url)}</li>`).join('')}</ol>` : ''}
+      ${dependents(i.id).length ? `<div class="hint" style="margin-top:8px">Unblocks: ${dependents(i.id).map(d => `<span class="linkish" data-edit="${d.id}">${esc(d.title)}</span>`).join(', ')}</div>` : ''}
+    </div>`).join('')}</div>`;
+  }
+
+  // ---------- Item dialog ----------
+  const dlg = $('#dlg');
+  let editing = null; // item id or null for new
+  let draft = null;
+
+  function openItem(id, preset = {}) {
+    editing = id || null;
+    const src = id ? byId(id) : null;
+    const defaultProject = state.activeProject !== 'all' ? state.activeProject : (state.projects[0] || {}).id;
+    draft = src ? JSON.parse(JSON.stringify(src)) : {
+      id: uid(), projectId: defaultProject, type: 'task', title: '', status: 'todo', priority: 'medium', start: '', due: '',
+      notes: '', tags: [], deps: [], sources: [], checklist: [], question: '', findings: '', ...preset,
+    };
+    $('#iProject').innerHTML = state.projects.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+    $('#iTitle').value = draft.title; $('#iType').value = draft.type; $('#iProject').value = draft.projectId || '';
+    $('#iStatus').value = draft.status; $('#iPriority').value = draft.priority; $('#iStart').value = draft.start; $('#iDue').value = draft.due;
+    $('#iTags').value = draft.tags.join(', '); $('#iNotes').value = draft.notes; $('#iQuestion').value = draft.question; $('#iFindings').value = draft.findings;
+    $('#depSearch').value = '';
+    $('#deleteItem').hidden = !src;
+    syncType(); renderSources(); renderChecklist(); renderDepPicker(); renderWarn();
+    dlg.showModal();
+    $('#iTitle').focus();
+  }
+  function syncType() { $('#dlgBody').classList.toggle('is-research', $('#iType').value === 'research'); }
+  function renderWarn() {
+    const tmp = { ...draft, start: $('#iStart').value, due: $('#iDue').value, status: $('#iStatus').value };
+    const msgs = [];
+    if (tmp.start && tmp.due && tmp.start > tmp.due) msgs.push('Start date is after the due date.');
+    const blockers = tmp.deps.map(byId).filter(d => d && d.status !== 'done');
+    if (blockers.length && tmp.status !== 'done') msgs.push(`Waiting on: ${blockers.map(d => esc(d.title)).join(', ')}.`);
+    const conf = conflicts(tmp);
+    if (conf.length) msgs.push(`Starts before ${conf.map(d => `"${esc(d.title)}" (due ${fmt(d.due)})`).join(', ')} is due.`);
+    $('#dlgWarn').innerHTML = msgs.length ? `<div class="warn-box">${msgs.join('<br>')}</div>` : '';
+  }
+  function renderSources() {
+    $('#sourceList').innerHTML = draft.sources.map((s, n) => `<div class="sub-item">
+      <input type="text" placeholder="Title" value="${esc(s.title)}" data-src="${n}" data-k="title">
+      <input type="url" placeholder="https://…" value="${esc(s.url)}" data-src="${n}" data-k="url">
+      <button type="button" class="icon-btn" data-rmsrc="${n}" aria-label="Remove source">✕</button></div>`).join('');
+  }
+  function renderChecklist() {
+    $('#checkList').innerHTML = draft.checklist.map((c, n) => `<div class="sub-item">
+      <input type="checkbox" class="check" data-chk="${n}" ${c.done ? 'checked' : ''}>
+      <input type="text" value="${esc(c.text)}" data-chktext="${n}" placeholder="Step">
+      <button type="button" class="icon-btn" data-rmchk="${n}" aria-label="Remove step">✕</button></div>`).join('');
+  }
+  function renderDepPicker() {
+    const q = $('#depSearch').value.trim().toLowerCase();
+    const others = sortItems(state.items.filter(i => i.id !== draft.id && (!q || i.title.toLowerCase().includes(q))));
+    if (!others.length) { $('#depPicker').innerHTML = '<div class="hint" style="padding:6px">No other items to depend on.</div>'; return; }
+    $('#depPicker').innerHTML = others.map(i => {
+      const cyc = editing && dependsOn(i.id, draft.id);
+      const on = draft.deps.includes(i.id);
+      return `<label class="${cyc && !on ? 'disabled' : ''}" title="${cyc ? 'Would create a circular dependency' : ''}">
+        <input type="checkbox" data-dep="${i.id}" ${on ? 'checked' : ''} ${cyc && !on ? 'disabled' : ''}>
+        <span>${esc(i.title)}</span>
+        <span class="hint" style="margin-left:auto">${esc((project(i.projectId) || {}).name || '')}${i.due ? ' · ' + fmt(i.due) : ''} · ${statusLabel(i.status)}</span></label>`;
+    }).join('');
+  }
+
+  $('#iType').addEventListener('change', syncType);
+  ['#iStart', '#iDue', '#iStatus'].forEach(s => $(s).addEventListener('change', renderWarn));
+  $('#depSearch').addEventListener('input', renderDepPicker);
+  $('#depPicker').addEventListener('change', e => {
+    const id = e.target.dataset.dep; if (!id) return;
+    draft.deps = e.target.checked ? [...new Set([...draft.deps, id])] : draft.deps.filter(d => d !== id);
+    renderWarn();
+  });
+  $('#addSource').addEventListener('click', () => { draft.sources.push({ title: '', url: '' }); renderSources(); });
+  $('#sourceList').addEventListener('input', e => { const n = e.target.dataset.src; if (n != null) draft.sources[n][e.target.dataset.k] = e.target.value; });
+  $('#sourceList').addEventListener('click', e => { const n = e.target.dataset.rmsrc; if (n != null) { draft.sources.splice(n, 1); renderSources(); } });
+  $('#addCheck').addEventListener('click', () => { draft.checklist.push({ id: uid(), text: '', done: false }); renderChecklist(); $$('#checkList input[type=text]').pop().focus(); });
+  $('#checkList').addEventListener('input', e => { const n = e.target.dataset.chktext; if (n != null) draft.checklist[n].text = e.target.value; });
+  $('#checkList').addEventListener('change', e => { const n = e.target.dataset.chk; if (n != null) draft.checklist[n].done = e.target.checked; });
+  $('#checkList').addEventListener('click', e => { const n = e.target.dataset.rmchk; if (n != null) { draft.checklist.splice(n, 1); renderChecklist(); } });
+  $('#cancelItem').addEventListener('click', () => dlg.close());
+  $('#deleteItem').addEventListener('click', () => {
+    const i = byId(editing); if (!i) return;
+    const deps = dependents(i.id);
+    if (!confirm(`Delete "${i.title}"?${deps.length ? `\n${deps.length} item(s) depend on it; those links will be removed.` : ''}`)) return;
+    state.items = state.items.filter(x => x.id !== i.id);
+    state.items.forEach(x => { x.deps = x.deps.filter(d => d !== i.id); });
+    dlg.close(); commit();
+  });
+  $('#itemForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const title = $('#iTitle').value.trim();
+    if (!title) { $('#iTitle').focus(); return; }
+    if (!state.projects.length) state.projects.push({ id: uid(), name: 'My project', color: COLORS[0] });
+    Object.assign(draft, {
+      title, type: $('#iType').value, projectId: $('#iProject').value || state.projects[0].id,
+      status: $('#iStatus').value, priority: $('#iPriority').value, start: $('#iStart').value, due: $('#iDue').value,
+      tags: $('#iTags').value.split(',').map(s => s.trim().replace(/^#/, '')).filter(Boolean),
+      notes: $('#iNotes').value, question: $('#iQuestion').value, findings: $('#iFindings').value,
+      sources: draft.sources.filter(s => s.title.trim() || s.url.trim()),
+      checklist: draft.checklist.filter(c => c.text.trim()),
+    });
+    const idx = state.items.findIndex(i => i.id === draft.id);
+    if (idx >= 0) state.items[idx] = draft; else state.items.push(draft);
+    dlg.close(); commit();
+  });
+
+  // ---------- Global events ----------
+  $('#fStatus').innerHTML += STATUSES.map(s => `<option value="${s.id}">${s.label}</option>`).join('');
+  $('#iStatus').innerHTML = STATUSES.map(s => `<option value="${s.id}">${s.label}</option>`).join('');
+  ['#search', '#fType', '#fStatus', '#fPriority', '#fHideDone'].forEach(s => $(s).addEventListener('input', render));
+
+  $('#tabs').addEventListener('click', e => { const v = e.target.dataset.view; if (v) { state.view = v; commit(); } });
+  $('#projectList').addEventListener('click', e => { const b = e.target.closest('[data-pid]'); if (b) { state.activeProject = b.dataset.pid; commit(); } });
+  $('#newItem').addEventListener('click', () => openItem(null, state.view === 'research' ? { type: 'research' } : {}));
+
+  $('#view').addEventListener('click', e => {
+    const tg = e.target.closest('[data-toggle]');
+    if (tg) { const i = byId(tg.dataset.toggle); if (i && !toggleDone(i)) tg.checked = i.status === 'done'; return; }
+    const ed = e.target.closest('[data-edit]');
+    if (ed) { openItem(ed.dataset.edit); return; }
+    const cal = e.target.closest('[data-cal]');
+    if (cal) {
+      const n = Number(cal.dataset.cal);
+      if (n === 0) state.calMonth = today().slice(0, 7);
+      else { const [y, m] = state.calMonth.split('-').map(Number); const d = new Date(y, m - 1 + n, 1); state.calMonth = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; }
+      commit(); return;
+    }
+    const day = e.target.closest('[data-day]');
+    if (day) openItem(null, { due: day.dataset.day });
+  });
+
+  $('#addProject').addEventListener('click', () => {
+    const name = prompt('Project name'); if (!name || !name.trim()) return;
+    const p = { id: uid(), name: name.trim(), color: COLORS[state.projects.length % COLORS.length] };
+    state.projects.push(p); state.activeProject = p.id; commit();
+  });
+  $('#renameProject').addEventListener('click', () => {
+    const p = project(state.activeProject); if (!p) return;
+    const name = prompt('Rename project', p.name); if (!name || !name.trim()) return;
+    p.name = name.trim(); commit();
+  });
+  $('#deleteProject').addEventListener('click', () => {
+    const p = project(state.activeProject); if (!p) return;
+    const n = state.items.filter(i => i.projectId === p.id).length;
+    if (!confirm(`Delete project "${p.name}" and its ${n} item(s)? This cannot be undone.`)) return;
+    const gone = new Set(state.items.filter(i => i.projectId === p.id).map(i => i.id));
+    state.items = state.items.filter(i => !gone.has(i.id));
+    state.items.forEach(i => { i.deps = i.deps.filter(d => !gone.has(d)); });
+    state.projects = state.projects.filter(x => x.id !== p.id);
+    state.activeProject = 'all'; commit();
+  });
+
+  $('#exportBtn').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = `projects-${today()}.json`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+  $('#importBtn').addEventListener('click', () => $('#importFile').click());
+  $('#importFile').addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const data = normalize(JSON.parse(await f.text()));
+      if (!confirm(`Replace current data with ${data.projects.length} project(s) and ${data.items.length} item(s) from "${f.name}"?`)) return;
+      state = data; commit();
+    } catch { alert('That file is not a valid export.'); }
+    e.target.value = '';
+  });
+
+  const THEME_KEY = 'project-planner-theme';
+  const applyTheme = t => { if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; };
+  applyTheme(safeGet(THEME_KEY));
+  $('#themeBtn').addEventListener('click', () => {
+    const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    const next = dark ? 'light' : 'dark';
+    applyTheme(next); safeSet(THEME_KEY, next);
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
